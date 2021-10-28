@@ -1,0 +1,69 @@
+# the instructions below explain how to setup a throughput benchmark pipeline starting at alveo3b (10.1.212.126) and
+# running through alveo 3c (10.1.212.127) and alveo4b (10.1.212.129), ending with alveo4c (10.1.212.130)
+# alveo3b is the producer and alveo4c is the consumer
+# alveo3c and alveo4b are loopback forwarders
+
+
+# start ETH Zurich VPN connection
+
+
+# please run the following commands once you have connected to an alveo VM
+export https_proxy='https://proxy.ethz.ch:3128'
+export http_proxy='http://proxy.ethz.ch:3128'
+git config --global http.proxy http://proxy.ethz.ch:3128
+
+VITIS_VERSION=2020.1
+VITIS_ROOT=/opt/tools/Xilinx/Vitis/${VITIS_VERSION}
+. ${VITIS_ROOT}/settings64.sh
+. /opt/xilinx/xrt/setup.sh
+
+
+# cfgds is an alias for "source ~/config_dask_scheduler.sh"
+# "config_dask_scheduler.sh" contains the following lines.
+#     source /opt/tools/external/anaconda/bin/activate pynq-dask
+#     dask-scheduler --port ${1}
+
+# cfgdw is an alias for "source ~/config_dask_worker.sh"
+# "config_dask_worker.sh" contains the following lines.
+#     source /opt/tools/external/anaconda/bin/activate pynq-dask
+#     dask-worker tcp://${1}:${2}
+
+# cfgbm is an alias for "source ~/config_benchmark.sh"
+# "config_benchmark.sh" contains the following lines.
+#     source /opt/tools/external/anaconda/bin/activate pynq-dask
+#     export PYTHONPATH=/opt/xilinx/xrt/python:/mnt/scratch/mbareford/epigram/XUP_Vitis_Network_Example/master/xup_vitis_network_example/Notebooks
+#     cd /mnt/scratch/${USER}/xup_vitis_network_example/benchmark.intf0.xilinx_u280_xdma_201920_3
+
+
+# start dask scheduler on alveo3b
+ssh alveo3b
+cfgds 8786
+
+# start dask worker on alveo3b
+ssh alveo3b
+cfgdw 10.1.212.126 8786
+
+# start dask worker on alveo3c
+ssh alveo3c
+cfgdw 10.1.212.126 8786
+
+# start dask worker on alveo4b
+ssh alveo4b
+cfgdw 10.1.212.126 8786
+
+# start dask worker on alveo4c
+ssh alveo4c
+cfgdw 10.1.212.126 8786
+
+
+# check dask workers are present by browsing to "http://10.1.212.126:8787/workers"
+
+
+# run benchmark from alveo3b
+ssh alveo3b
+cfgbm
+
+
+# run benchmark (the alveo3b FPGA is assigned IP address 10.1.212.156, alveo3c FPGA is assigned 10.1.212.157, 
+# alveo4b FPGA is assigned 10.1.212.159 and the alveo4c FPGA is assigned 10.1.212.160)
+python benchmark-pipeline-switch.py -s 10.1.212.126 -p 8786 -f 10.1.212.156 10.1.212.157 10.1.212.159 10.1.212.160 -g 60512 62177 63842 65507 -x ./vnx_benchmark_if0.xclbin

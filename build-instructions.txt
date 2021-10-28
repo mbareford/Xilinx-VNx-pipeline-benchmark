@@ -1,0 +1,36 @@
+# start ETH Zurich VPN connection
+ssh alveo0
+
+
+cd /mnt/scratch/${USER}
+
+
+export https_proxy='https://proxy.ethz.ch:3128'
+export http_proxy='http://proxy.ethz.ch:3128'
+git config --global http.proxy http://proxy.ethz.ch:3128
+
+
+VITIS_VERSION=2020.1
+VITIS_ROOT=/opt/Xilinx/Vitis/${VITIS_VERSION}
+
+. ${VITIS_ROOT}/settings64.sh
+. /opt/xilinx/xrt/setup.sh
+
+
+git clone https://github.com/Xilinx/xup_vitis_network_example.git --recursive
+
+cd ./xup_vitis_network_example
+
+git checkout a4aeca5a28a1c1167a288fa6d1cacd6a3df27c16
+
+
+cd ./NetLayers
+
+export LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
+nohup make all DEVICE=xilinx_u280_xdma_201920_3 &> make.out &
+
+
+cd ..
+
+nohup make all DEVICE=xilinx_u280_xdma_201920_3 DESIGN=basic &> make_basic.out &
+nohup make all DEVICE=xilinx_u280_xdma_201920_3 DESIGN=benchmark &> make_benchmark.out &
